@@ -756,24 +756,8 @@ function CapitalOS() {
             </div>
           </Glass>
 
-          {/* Templates */}
-          {templates.length>0&&(
-            <Glass style={{marginBottom:16}}>
-              <SH right={<Btn secondary size="sm" onClick={repeatLast}>Repeat Last</Btn>}>Templates</SH>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                {templates.map(t=>(
-                  <div key={t.id} onClick={()=>useTemplate(t)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",borderRadius:10,border:`1px solid ${T.dim}`,cursor:"pointer",transition:"background 0.15s",background:"rgba(255,255,255,0.02)"}}>
-                    <span style={{fontSize:13,color:T.text,fontWeight:500}}>{t.source}</span>
-                    <span style={{fontSize:12,color:T.muted,fontFamily:mono}}>{F(t.amount)}</span>
-                    <span onClick={(e)=>{e.stopPropagation();setTemplates(p=>p.filter(x=>x.id!==t.id))}} style={{fontSize:14,color:T.dim,cursor:"pointer",marginLeft:4}}>×</span>
-                  </div>
-                ))}
-              </div>
-            </Glass>
-          )}
-
           <Glass style={{marginBottom:16}}>
-            <SH right={<div style={{display:"flex",gap:8}}><Btn secondary size="sm" onClick={saveTemplate}>Save as Template</Btn><Btn secondary size="sm" onClick={()=>setImportModal("income")}>Import CSV</Btn></div>}>Quick Entry</SH>
+            <SH right={<Btn secondary size="sm" onClick={()=>setImportModal("income")}>Import CSV</Btn>}>Quick Entry</SH>
             <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-end"}}>
               <Inp label="Date" type="date" value={iF.date} onChange={e=>sIF(p=>({...p,date:e.target.value}))} style={{maxWidth:150}}/>
               <Inp label="Source" placeholder="Deal, client..." value={iF.source} onChange={e=>sIF(p=>({...p,source:e.target.value}))}/>
