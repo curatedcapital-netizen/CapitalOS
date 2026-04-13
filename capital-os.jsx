@@ -78,10 +78,10 @@ const SEED = {
 // ── PERSISTENCE ──
 const STORE_KEY = "capital_os_v2";
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); return s && s.income ? s : null; } catch { return null; }
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); return s && s.income ? s : null; } catch(e) { return null; }
 }
 function saveState(state) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch {}
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e) {}
 }
 
 // ── CSV UTILS ──
