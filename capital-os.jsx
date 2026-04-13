@@ -85,7 +85,7 @@ function saveState(state) {
 }
 
 // ── CSV UTILS ──
-function xcsv(fn,h,rows){const c=[h.join(","),...rows.map(r=>h.map(k=>{const v=r[k]??"";return typeof v==="string"&&v.includes(",")?`"${v}"`:v}).join(","))].join("\n");const b=new Blob([c],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=fn;a.click();}
+function xcsv(fn,h,rows){const c=[h.join(","),...rows.map(r=>h.map(k=>{const v=(r[k]!=null?r[k]:"");return typeof v==="string"&&v.includes(",")?`"${v}"`:v}).join(","))].join("\n");const b=new Blob([c],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=fn;a.click();}
 
 function parseCSV(text) {
   const lines = text.trim().split("\n");
@@ -393,7 +393,7 @@ export default function CapitalOS() {
   // ── CSV IMPORT HANDLER ──
   const fileRef = useRef();
   const handleImport = (type) => {
-    const file = fileRef.current?.files?.[0];
+    const file = fileRef.current && fileRef.current.files && fileRef.current.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {

@@ -95,12 +95,8 @@
           code = code.replace(/^import\s+\{[^}]+\}\s+from\s+["'][^"']+["'];?\s*$/gm, "");
           // Change export default to plain function
           code = code.replace("export default function", "function");
-          // Fix bare catch blocks
+          // Fix bare catch blocks (just in case)
           code = code.replace(/catch\s*\{/g, "catch(e) {");
-          // Fix nullish coalescing
-          code = code.replace(/(\w+)\?\?/g, "(($1!=null)?$1:");
-          // Fix optional chaining (simple cases)
-          code = code.replace(/(\w+)\?\./g, "($1&&$1).");
 
           // Step 3: Transpile JSX
           var output;
