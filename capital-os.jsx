@@ -199,9 +199,16 @@ function Tag({children, positive, negative}) {
   return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:6,fontSize:10,fontWeight:600,background:`${c}18`,color:c,letterSpacing:1,textTransform:"uppercase"}}>{children}</span>;
 }
 
-function Row({label, sub, amount, amtColor, right, onDelete, onEdit}) {
-  return (<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 0",borderBottom:`1px solid ${T.border}`,position:"relative"}}>
-    <div style={{minWidth:0,flex:1,cursor:onEdit?"pointer":"default"}} onClick={onEdit||undefined}>
+function Checkbox({checked, onChange}) {
+  return (<div onClick={onChange} style={{width:22,height:22,borderRadius:6,border:`2px solid ${checked?"rgba(143,188,143,0.8)":T.dim}`,background:checked?"rgba(143,188,143,0.15)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all 0.15s"}}>
+    {checked&&<span style={{fontSize:12,color:T.pos,fontWeight:700,lineHeight:1}}>&#10003;</span>}
+  </div>);
+}
+
+function Row({label, sub, amount, amtColor, right, onDelete, onEdit, selectMode, selected, onToggle, id}) {
+  return (<div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 0",borderBottom:`1px solid ${T.border}`,position:"relative",background:selected?"rgba(143,188,143,0.04)":"transparent",transition:"background 0.15s"}}>
+    {selectMode&&<Checkbox checked={selected} onChange={onToggle}/>}
+    <div style={{minWidth:0,flex:1,cursor:onEdit?"pointer":"default"}} onClick={selectMode?onToggle:(onEdit||undefined)}>
       <div style={{fontSize:14,fontWeight:500,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</div>
       {sub&&<div style={{fontSize:11,color:T.muted,marginTop:3}}>{sub}</div>}
     </div>
@@ -210,12 +217,26 @@ function Row({label, sub, amount, amtColor, right, onDelete, onEdit}) {
         <div style={{fontSize:14,fontWeight:600,color:amtColor||T.text,fontVariantNumeric:"tabular-nums",fontFamily:mono,letterSpacing:-0.5}}>{amount}</div>
         {right&&<div style={{fontSize:10,color:T.muted,marginTop:3}}>{typeof right==="string"?right:right}</div>}
       </div>
-      {(onEdit||onDelete)&&(
-        <div style={{display:"flex",alignItems:"center",gap:2,marginLeft:8}}>
-          {onEdit&&<span onClick={onEdit} style={{fontSize:11,color:T.sub,cursor:"pointer",padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:`1px solid ${T.dim}`,lineHeight:1,flexShrink:0,transition:"background 0.15s"}}>edit</span>}
-          {onDelete&&<span onClick={onDelete} style={{fontSize:11,color:T.neg,cursor:"pointer",padding:"6px 10px",borderRadius:8,background:"rgba(196,112,112,0.06)",border:`1px solid rgba(196,112,112,0.15)`,lineHeight:1,flexShrink:0,transition:"background 0.15s"}}>×</span>}
+      {!selectMode&&(onEdit||onDelete)&&(
+        <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:8}}>
+          {onEdit&&<span onClick={onEdit} style={{fontSize:11,color:T.sub,cursor:"pointer",padding:"6px 12px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:`1px solid ${T.dim}`,lineHeight:1,flexShrink:0,transition:"background 0.15s"}}>edit</span>}
+          {onDelete&&<span onClick={onDelete} style={{fontSize:11,color:"rgba(196,112,112,0.7)",cursor:"pointer",padding:"6px 12px",borderRadius:8,background:"rgba(196,112,112,0.06)",border:"1px solid rgba(196,112,112,0.12)",lineHeight:1,flexShrink:0,transition:"background 0.15s"}}>delete</span>}
         </div>
       )}
+    </div>
+  </div>);
+}
+
+function SelectBar({count, onDelete, onCancel, onSelectAll}) {
+  if(count===0) return null;
+  return (<div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1500,background:"rgba(20,20,20,0.95)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.08)",padding:"16px 32px",display:"flex",alignItems:"center",justifyContent:"space-between",animation:"fadeInUp 0.2s ease-out"}}>
+    <div style={{display:"flex",alignItems:"center",gap:16}}>
+      <span style={{fontSize:14,fontWeight:600,color:T.heading}}>{count} selected</span>
+      <span onClick={onSelectAll} style={{fontSize:12,color:T.sub,cursor:"pointer",textDecoration:"underline"}}>Select all</span>
+    </div>
+    <div style={{display:"flex",gap:10}}>
+      <span onClick={onCancel} style={{fontSize:12,color:T.sub,cursor:"pointer",padding:"10px 20px",borderRadius:10,border:`1px solid ${T.dim}`,background:"rgba(255,255,255,0.04)"}}>Cancel</span>
+      <span onClick={onDelete} style={{fontSize:12,color:"#fff",cursor:"pointer",padding:"10px 20px",borderRadius:10,background:"rgba(196,112,112,0.5)",border:"1px solid rgba(196,112,112,0.4)",fontWeight:600}}>Delete {count}</span>
     </div>
   </div>);
 }
@@ -235,13 +256,21 @@ function FAB({onClick}) {
 
 function Modal({open, onClose, title, children, wide}) {
   if(!open)return null;
-  return (<div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(20,20,20,0.85)",backdropFilter:"blur(12px)"}} onClick={onClose}>
-    <div onClick={e=>e.stopPropagation()} style={{background:T.bg,border:`1px solid ${T.dim}`,borderRadius:18,padding:32,width:"100%",maxWidth:wide?600:420,maxHeight:"80vh",overflowY:"auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
-        <span style={{fontSize:16,fontWeight:600,color:T.heading,letterSpacing:-0.3}}>{title}</span>
-        <span onClick={onClose} style={{cursor:"pointer",color:T.muted,fontSize:18}}>×</span>
+  return (<div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",background:"rgba(10,10,10,0.80)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",animation:"fadeIn 0.15s ease-out"}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{background:"linear-gradient(180deg, #1E1E1E 0%, #161616 100%)",border:"1px solid rgba(255,255,255,0.08)",borderBottom:"none",borderRadius:"24px 24px 0 0",padding:"0",width:"100%",maxWidth:wide?640:480,maxHeight:"85vh",overflowY:"auto",animation:"slideUp 0.25s cubic-bezier(0.32,0.72,0,1)",position:"relative"}}>
+      {/* Drag indicator */}
+      <div style={{display:"flex",justifyContent:"center",paddingTop:12,paddingBottom:8}}>
+        <div style={{width:36,height:4,borderRadius:2,background:"rgba(255,255,255,0.12)"}}/>
       </div>
-      {children}
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 28px 20px"}}>
+        <span style={{fontSize:18,fontWeight:600,color:T.heading,letterSpacing:-0.5}}>{title}</span>
+        <span onClick={onClose} style={{cursor:"pointer",color:T.muted,fontSize:13,padding:"8px 14px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:`1px solid ${T.dim}`,transition:"background 0.15s"}}>Done</span>
+      </div>
+      {/* Divider */}
+      <div style={{height:1,background:"rgba(255,255,255,0.06)",marginBottom:4}}/>
+      {/* Content */}
+      <div style={{padding:"20px 28px 36px"}}>{children}</div>
     </div>
   </div>);
 }
@@ -297,6 +326,22 @@ function CapitalOS() {
   const [importModal, setImportModal] = useState(null); // "income"|"spending"|"reinvestments"|null
   const [toast, setToast] = useState({msg:"",visible:false});
   const [fabOpen, setFabOpen] = useState(false);
+
+  // ── SELECT MODE (multi-select bulk delete) ──
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState({});
+  const toggleSelect = (id) => { setSelectedIds(prev => { var next = {}; for (var k in prev) next[k] = prev[k]; if (next[id]) { delete next[id]; } else { next[id] = true; } return next; }); };
+  const selectedCount = Object.keys(selectedIds).length;
+  const exitSelect = () => { setSelectMode(false); setSelectedIds({}); };
+  const enterSelect = () => { setSelectMode(true); setSelectedIds({}); };
+  useEffect(function() { exitSelect(); }, [tab]);
+
+  // ── BULK DELETE HANDLERS ──
+  const bulkDelIncome = () => { setIncome(p => p.filter(x => !selectedIds[x.id])); showToast(selectedCount + " entries removed"); exitSelect(); };
+  const bulkDelSpend = () => { setSpending(p => p.filter(x => !selectedIds[x.id])); showToast(selectedCount + " expenses removed"); exitSelect(); };
+  const bulkDelReinv = () => { setReinvestments(p => p.filter(x => !selectedIds[x.id])); showToast(selectedCount + " reinvestments removed"); exitSelect(); };
+  const bulkDelInvest = () => { setInvestments(p => p.filter(x => !selectedIds[x.id])); showToast(selectedCount + " investments removed"); exitSelect(); };
+  const bulkDelDeal = () => { setDeals(p => p.filter(x => !selectedIds[x.id])); showToast(selectedCount + " deals removed"); exitSelect(); };
 
   // ── EDIT SYSTEM ──
   // editModal: { type: "income"|"spending"|"reinvestment"|"investment"|"deal", id: string, data: {...} } | null
@@ -442,7 +487,7 @@ function CapitalOS() {
       // Don't fire when typing in inputs
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
 
-      if (e.key === "Escape") { setCmdOpen(false); setImportModal(null); sDM(false); sDPM(null); sADM(false); sRetM(null); setEditModal(null); setFabOpen(false); setEditDebtModal(null); setEditPayModal(null); return; }
+      if (e.key === "Escape") { setCmdOpen(false); setImportModal(null); sDM(false); sDPM(null); sADM(false); sRetM(null); setEditModal(null); setFabOpen(false); setEditDebtModal(null); setEditPayModal(null); exitSelect(); return; }
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setCmdOpen(prev=>!prev); return; }
       if (e.key === "n" || e.key === "N") { setTab("income"); return; }
       if (e.key === "d" || e.key === "D") { setTab("warchest"); return; }
@@ -728,11 +773,15 @@ function CapitalOS() {
           <Glass pad={false}>
             <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <SH>History</SH>
-              <Btn secondary size="sm" onClick={()=>xcsv("income.csv",["date","source","amount","notes"],income)}>Export</Btn>
+              <div style={{display:"flex",gap:8}}>
+                <Btn secondary size="sm" onClick={selectMode?exitSelect:enterSelect}>{selectMode?"Cancel":"Select"}</Btn>
+                <Btn secondary size="sm" onClick={()=>xcsv("income.csv",["date","source","amount","notes"],income)}>Export</Btn>
+              </div>
             </div>
             <div style={{padding:"0 28px 16px"}}>
-              {income.map(i=><Row key={i.id} label={i.source} sub={rel(i.date)} amount={`+${F(i.amount)}`} amtColor={T.pos} right={i.notes} onDelete={()=>delIncome(i.id)} onEdit={()=>openEdit("income",i)}/>)}
+              {income.map(function(i){return <Row key={i.id} id={i.id} label={i.source} sub={rel(i.date)} amount={"+"+F(i.amount)} amtColor={T.pos} right={i.notes} onDelete={function(){delIncome(i.id)}} onEdit={function(){openEdit("income",i)}} selectMode={selectMode} selected={!!selectedIds[i.id]} onToggle={function(){toggleSelect(i.id)}}/>})}
             </div>
+            {selectMode&&<SelectBar count={selectedCount} onDelete={bulkDelIncome} onCancel={exitSelect} onSelectAll={function(){var s={};income.forEach(function(i){s[i.id]=true});setSelectedIds(s)}}/>}
           </Glass>
         </>)}
 
@@ -772,20 +821,25 @@ function CapitalOS() {
           <Glass pad={false}>
             <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <SH>Deal Deployments</SH>
-              <Btn size="sm" onClick={()=>sDM(true)}>Deploy Capital</Btn>
+              <div style={{display:"flex",gap:8}}>
+                <Btn secondary size="sm" onClick={selectMode?exitSelect:enterSelect}>{selectMode?"Cancel":"Select"}</Btn>
+                <Btn size="sm" onClick={()=>sDM(true)}>Deploy Capital</Btn>
+              </div>
             </div>
             <div style={{padding:"0 28px 16px"}}>
-              {deals.map(d=>{
-                const pl = d.actualRet ? d.actualRet - d.amount : null;
-                return <Row key={d.id} label={d.notes} sub={`${rel(d.date)}${d.actualRet?` · P&L: ${pl>=0?"+":""}${F(pl)}`:""}`} amount={F(d.amount)}
-                  right={<div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <Tag positive={d.status==="returned"} negative={d.status==="active"}>{d.status}</Tag>
-                    {d.status==="active"&&<span onClick={()=>{sRetM(d.id);sRetAmt(String(d.ret||""))}} style={{fontSize:10,color:T.sub,cursor:"pointer",textDecoration:"underline"}}>close deal</span>}
-                  </div>}
-                  onDelete={()=>delDeal(d.id)} onEdit={d.status==="active"?()=>openEdit("deal",d):undefined}
+              {deals.map(function(d){
+                var pl = d.actualRet ? d.actualRet - d.amount : null;
+                return <Row key={d.id} id={d.id} label={d.notes} sub={rel(d.date)+(d.actualRet?" · P&L: "+(pl>=0?"+":"")+F(pl):"")} amount={F(d.amount)}
+                  right={React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
+                    React.createElement(Tag,{positive:d.status==="returned",negative:d.status==="active"},d.status),
+                    d.status==="active"&&React.createElement("span",{onClick:function(){sRetM(d.id);sRetAmt(String(d.ret||""))},style:{fontSize:10,color:T.sub,cursor:"pointer",textDecoration:"underline"}},"close deal")
+                  )}
+                  onDelete={function(){delDeal(d.id)}} onEdit={d.status==="active"?function(){openEdit("deal",d)}:undefined}
+                  selectMode={selectMode} selected={!!selectedIds[d.id]} onToggle={function(){toggleSelect(d.id)}}
                 />;
               })}
             </div>
+            {selectMode&&<SelectBar count={selectedCount} onDelete={bulkDelDeal} onCancel={exitSelect} onSelectAll={function(){var s={};deals.forEach(function(d){s[d.id]=true});setSelectedIds(s)}}/>}
           </Glass>
 
           <Modal open={dM} onClose={()=>sDM(false)} title="Deploy Capital">
@@ -932,8 +986,9 @@ function CapitalOS() {
             </Glass>
           </div>
           <Glass pad={false}>
-            <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>All Reinvestments</SH><Btn secondary size="sm" onClick={()=>xcsv("reinvestments.csv",["date","amount","cat","notes","roi"],reinvestments)}>Export</Btn></div>
-            <div style={{padding:"0 28px 16px"}}>{reinvestments.map(r=><Row key={r.id} label={r.notes} sub={`${r.cat} · ${rel(r.date)}`} amount={F(r.amount)} right={r.roi?`${r.roi}x`:""} onDelete={()=>delReinv(r.id)} onEdit={()=>openEdit("reinvestment",r)}/>)}</div>
+            <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>All Reinvestments</SH><div style={{display:"flex",gap:8}}><Btn secondary size="sm" onClick={selectMode?exitSelect:enterSelect}>{selectMode?"Cancel":"Select"}</Btn><Btn secondary size="sm" onClick={()=>xcsv("reinvestments.csv",["date","amount","cat","notes","roi"],reinvestments)}>Export</Btn></div></div>
+            <div style={{padding:"0 28px 16px"}}>{reinvestments.map(function(r){return <Row key={r.id} id={r.id} label={r.notes} sub={r.cat+" · "+rel(r.date)} amount={F(r.amount)} right={r.roi?r.roi+"x":""} onDelete={function(){delReinv(r.id)}} onEdit={function(){openEdit("reinvestment",r)}} selectMode={selectMode} selected={!!selectedIds[r.id]} onToggle={function(){toggleSelect(r.id)}}/>})}</div>
+            {selectMode&&<SelectBar count={selectedCount} onDelete={bulkDelReinv} onCancel={exitSelect} onSelectAll={function(){var s={};reinvestments.forEach(function(r){s[r.id]=true});setSelectedIds(s)}}/>}
           </Glass>
         </>)}
 
@@ -960,12 +1015,13 @@ function CapitalOS() {
             </div>
           </Glass>
           <Glass pad={false}>
-            <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>Portfolio</SH><Btn secondary size="sm" onClick={()=>xcsv("investments.csv",["date","ticker","amount","val"],investments)}>Export</Btn></div>
+            <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>Portfolio</SH><div style={{display:"flex",gap:8}}><Btn secondary size="sm" onClick={selectMode?exitSelect:enterSelect}>{selectMode?"Cancel":"Select"}</Btn><Btn secondary size="sm" onClick={()=>xcsv("investments.csv",["date","ticker","amount","val"],investments)}>Export</Btn></div></div>
             <div style={{padding:"0 28px 16px"}}>
-              {investments.map(inv=>{const gl=inv.val-inv.amount;return(
-                <Row key={inv.id} label={inv.ticker} sub={rel(inv.date)} amount={F(inv.val)} amtColor={gl>=0?T.pos:T.neg} right={<span style={{color:gl>=0?T.pos:T.neg}}>{gl>=0?"+":""}{F(gl)}</span>} onDelete={()=>delInvest(inv.id)} onEdit={()=>openEdit("investment",inv)}/>
+              {investments.map(function(inv){var gl=inv.val-inv.amount;return(
+                <Row key={inv.id} id={inv.id} label={inv.ticker} sub={rel(inv.date)} amount={F(inv.val)} amtColor={gl>=0?T.pos:T.neg} right={React.createElement("span",{style:{color:gl>=0?T.pos:T.neg}},(gl>=0?"+":"")+F(gl))} onDelete={function(){delInvest(inv.id)}} onEdit={function(){openEdit("investment",inv)}} selectMode={selectMode} selected={!!selectedIds[inv.id]} onToggle={function(){toggleSelect(inv.id)}}/>
               )})}
             </div>
+            {selectMode&&<SelectBar count={selectedCount} onDelete={bulkDelInvest} onCancel={exitSelect} onSelectAll={function(){var s={};investments.forEach(function(i){s[i.id]=true});setSelectedIds(s)}}/>}
           </Glass>
         </>)}
 
@@ -1024,8 +1080,9 @@ function CapitalOS() {
             </Glass>
           </div>
           <Glass pad={false}>
-            <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>Expense Log</SH><Btn secondary size="sm" onClick={()=>xcsv("spending.csv",["date","amount","cat","notes"],spending)}>Export</Btn></div>
-            <div style={{padding:"0 28px 16px"}}>{spending.map(s=><Row key={s.id} label={s.notes||s.cat} sub={rel(s.date)} amount={F(s.amount)} right={s.cat} onDelete={()=>delSpend(s.id)} onEdit={()=>openEdit("spending",s)}/>)}</div>
+            <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>Expense Log</SH><div style={{display:"flex",gap:8}}><Btn secondary size="sm" onClick={selectMode?exitSelect:enterSelect}>{selectMode?"Cancel":"Select"}</Btn><Btn secondary size="sm" onClick={()=>xcsv("spending.csv",["date","amount","cat","notes"],spending)}>Export</Btn></div></div>
+            <div style={{padding:"0 28px 16px"}}>{spending.map(function(s){return <Row key={s.id} id={s.id} label={s.notes||s.cat} sub={rel(s.date)} amount={F(s.amount)} right={s.cat} onDelete={function(){delSpend(s.id)}} onEdit={function(){openEdit("spending",s)}} selectMode={selectMode} selected={!!selectedIds[s.id]} onToggle={function(){toggleSelect(s.id)}}/>})}</div>
+            {selectMode&&<SelectBar count={selectedCount} onDelete={bulkDelSpend} onCancel={exitSelect} onSelectAll={function(){var s={};spending.forEach(function(x){s[x.id]=true});setSelectedIds(s)}}/>}
           </Glass>
         </>)}
 
@@ -1253,7 +1310,7 @@ function CapitalOS() {
       <Toast msg={toast.msg} visible={toast.visible}/>
 
       {/* ANIMATION KEYFRAMES */}
-      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
+      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}@keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
     </div>
   );
 }
