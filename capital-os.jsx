@@ -732,8 +732,29 @@ function CapitalOS() {
         {tab==="income"&&(<>
           <div style={{marginBottom:36}}>
             <div style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:3,fontWeight:600,marginBottom:12}}>Income</div>
-            <div style={{fontSize:32,fontWeight:300,letterSpacing:-1,color:T.heading}}>Every dollar has a job</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:16,marginBottom:4}}>
+              <span style={{fontSize:48,fontWeight:300,letterSpacing:-2,lineHeight:1,color:T.heading,fontVariantNumeric:"tabular-nums"}}>{F(totalInc)}</span>
+              <span style={{fontSize:13,color:T.pos,fontWeight:500}}>Total Earned</span>
+            </div>
+            <div style={{fontSize:11,color:T.muted,marginTop:4,marginBottom:4}}>Every dollar has a job</div>
           </div>
+
+          {/* Auto-Split of Total Income */}
+          <Glass style={{marginBottom:16}}>
+            <SH>Auto-Split Allocation</SH>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
+              {ALLOC.map(function(a){return(
+                <div key={a.key} style={{padding:"14px 16px",borderRadius:12,background:"rgba(255,255,255,0.03)",border:"1px solid "+T.dim}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <span style={{fontSize:11,color:T.sub,fontWeight:500}}>{a.label}</span>
+                    <span style={{fontSize:10,color:T.muted,fontFamily:mono}}>{(a.pct*100).toFixed(0)}%</span>
+                  </div>
+                  <div style={{fontSize:20,fontWeight:600,color:T.heading,fontFamily:mono,letterSpacing:-0.5,marginBottom:6}}>{F(buckets[a.key])}</div>
+                  <PBar value={buckets[a.key]} max={goals[a.key]>0?goals[a.key]:totalInc*0.3} h={3} color={a.color}/>
+                </div>
+              )})}
+            </div>
+          </Glass>
 
           {/* Templates */}
           {templates.length>0&&(
