@@ -26,18 +26,26 @@
     }
     #status { font-size: 11px; color: #444; letter-spacing: 1px; }
     #error-box { display: none; color: #C47070; font-size: 12px; text-transform: none; letter-spacing: 0; padding: 20px 40px; text-align: left; max-width: 600px; line-height: 1.6; word-break: break-word; }
+
+    /* ── Mobile responsive ── */
     @media (max-width: 768px) {
-      nav { padding: 0 16px !important; }
-      nav > div:first-child { gap: 12px !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      nav { padding: 0 12px !important; height: 48px !important; }
+      nav > div:first-child { gap: 8px !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
       nav > div:first-child::-webkit-scrollbar { display: none; }
-      nav button { padding: 16px 10px !important; font-size: 10px !important; white-space: nowrap; }
+      nav button { padding: 14px 8px !important; font-size: 9px !important; white-space: nowrap; }
       main { padding: 20px 16px 100px !important; }
     }
     @media (max-width: 480px) {
-      nav > div:first-child > span:first-child { font-size: 12px !important; letter-spacing: 2px !important; }
-      nav > div:first-child > div:nth-child(2) { display: none !important; }
+      nav > div:first-child > span:first-child { font-size: 11px !important; letter-spacing: 2px !important; }
+      nav > div:first-child > div:first-of-type { display: none !important; }
+      nav > div:last-child { display: none !important; }
     }
   </style>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.0/babel.min.js"></script>
 </head>
 <body>
   <div id="loading">
@@ -47,42 +55,23 @@
   </div>
   <div id="root"></div>
 
-  <!-- React -->
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-
-  <!-- Prop-types (required by Recharts) -->
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
-
-  <!-- Recharts -->
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
-
-  <!-- Babel standalone for JSX transpilation -->
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.0/babel.min.js"></script>
-
   <script>
-    // Show errors visually
     function showError(msg) {
       document.getElementById("status").style.display = "none";
       var eb = document.getElementById("error-box");
       eb.style.display = "block";
       eb.innerHTML = msg;
     }
-
     window.onerror = function(m, s, l) { showError("Runtime error: " + m + " (line " + l + ")"); };
 
-    // Boot sequence
     (function boot() {
       var status = document.getElementById("status");
-
-      // Step 1: Verify libs loaded
       if (typeof React === "undefined") { showError("React failed to load"); return; }
       if (typeof ReactDOM === "undefined") { showError("ReactDOM failed to load"); return; }
       if (typeof Recharts === "undefined") { showError("Recharts failed to load"); return; }
       if (typeof Babel === "undefined") { showError("Babel failed to load"); return; }
       status.textContent = "libraries loaded...";
 
-      // Step 2: Fetch the JSX component
       fetch("capital-os.jsx")
         .then(function(res) {
           if (!res.ok) throw new Error("HTTP " + res.status);
@@ -91,14 +80,9 @@
         .then(function(code) {
           status.textContent = "transpiling...";
 
-          // Strip ES module imports (we use globals instead)
-          code = code.replace(/^import\s+\{[^}]+\}\s+from\s+["'][^"']+["'];?\s*$/gm, "");
-          // Change export default to plain function
-          code = code.replace("export default function", "function");
           // Fix bare catch blocks (just in case)
           code = code.replace(/catch\s*\{/g, "catch(e) {");
 
-          // Step 3: Transpile JSX
           var output;
           try {
             output = Babel.transform(code, {
@@ -112,7 +96,6 @@
 
           status.textContent = "mounting...";
 
-          // Step 4: Build the runtime code with globals
           var runtime = [
             "var { useState, useMemo, useEffect, useCallback, useRef } = React;",
             "var { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line, CartesianGrid } = Recharts;",
@@ -121,7 +104,6 @@
             "ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(CapitalOS));"
           ].join("\n");
 
-          // Step 5: Execute
           try {
             var fn = new Function(runtime);
             fn();
@@ -135,7 +117,6 @@
     })();
   </script>
 
-  <!-- Service Worker -->
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function() {

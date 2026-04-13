@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line, CartesianGrid } from "recharts";
+// Dependencies provided via globals: React, Recharts
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CAPITAL OS v2 — Brutalist Fog · Elite Edition
@@ -200,16 +199,33 @@ function Tag({children, positive, negative}) {
   return <span style={{display:"inline-flex",padding:"3px 10px",borderRadius:6,fontSize:10,fontWeight:600,background:`${c}18`,color:c,letterSpacing:1,textTransform:"uppercase"}}>{children}</span>;
 }
 
-function Row({label, sub, amount, amtColor, right}) {
-  return (<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 0",borderBottom:`1px solid ${T.border}`}}>
-    <div style={{minWidth:0,flex:1}}>
+function Row({label, sub, amount, amtColor, right, onDelete, onEdit}) {
+  return (<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 0",borderBottom:`1px solid ${T.border}`,position:"relative"}}>
+    <div style={{minWidth:0,flex:1,cursor:onEdit?"pointer":"default"}} onClick={onEdit||undefined}>
       <div style={{fontSize:14,fontWeight:500,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</div>
       {sub&&<div style={{fontSize:11,color:T.muted,marginTop:3}}>{sub}</div>}
     </div>
-    <div style={{textAlign:"right",flexShrink:0,marginLeft:16}}>
-      <div style={{fontSize:14,fontWeight:600,color:amtColor||T.text,fontVariantNumeric:"tabular-nums",fontFamily:mono,letterSpacing:-0.5}}>{amount}</div>
-      {right&&<div style={{fontSize:10,color:T.muted,marginTop:3}}>{typeof right==="string"?right:right}</div>}
+    <div style={{display:"flex",alignItems:"center",gap:12}}>
+      <div style={{textAlign:"right",flexShrink:0}}>
+        <div style={{fontSize:14,fontWeight:600,color:amtColor||T.text,fontVariantNumeric:"tabular-nums",fontFamily:mono,letterSpacing:-0.5}}>{amount}</div>
+        {right&&<div style={{fontSize:10,color:T.muted,marginTop:3}}>{typeof right==="string"?right:right}</div>}
+      </div>
+      {onEdit&&<span onClick={onEdit} style={{fontSize:11,color:T.muted,cursor:"pointer",padding:"4px 6px",borderRadius:6,lineHeight:1,flexShrink:0}}>edit</span>}
+      {onDelete&&<span onClick={onDelete} style={{fontSize:15,color:T.dim,cursor:"pointer",padding:"4px 6px",borderRadius:6,transition:"color 0.15s",lineHeight:1,flexShrink:0}}>×</span>}
     </div>
+  </div>);
+}
+
+function Toast({msg, visible}) {
+  if(!visible) return null;
+  return (<div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.10)",borderRadius:12,padding:"12px 24px",fontSize:13,color:T.heading,fontWeight:500,zIndex:2000,letterSpacing:0.2,animation:"fadeInUp 0.3s ease-out",fontFamily:ff}}>
+    {msg}
+  </div>);
+}
+
+function FAB({onClick}) {
+  return (<div onClick={onClick} style={{position:"fixed",bottom:24,right:24,width:56,height:56,borderRadius:28,background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:900,fontSize:24,color:T.heading,fontWeight:300,transition:"transform 0.15s, background 0.15s",boxShadow:"0 4px 24px rgba(0,0,0,0.4)"}}>
+    +
   </div>);
 }
 
@@ -259,7 +275,7 @@ const tts={background:"rgba(20,20,20,0.95)",border:`1px solid ${T.dim}`,borderRa
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CapitalOS() {
+function CapitalOS() {
   // ── LOAD PERSISTED STATE OR SEED ──
   const initial = loadState() || SEED;
 
@@ -275,6 +291,50 @@ export default function CapitalOS() {
   const [snapshots, setSnapshots] = useState(initial.snapshots || SEED.snapshots);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [importModal, setImportModal] = useState(null); // "income"|"spending"|"reinvestments"|null
+  const [toast, setToast] = useState({msg:"",visible:false});
+  const [fabOpen, setFabOpen] = useState(false);
+
+  // ── EDIT SYSTEM ──
+  // editModal: { type: "income"|"spending"|"reinvestment"|"investment"|"deal", id: string, data: {...} } | null
+  const [editModal, setEditModal] = useState(null);
+
+  const openEdit = (type, item) => {
+    setEditModal({ type, id: item.id, data: { ...item } });
+  };
+
+  const updateEditField = (field, value) => {
+    setEditModal(prev => prev ? { ...prev, data: { ...prev.data, [field]: value } } : null);
+  };
+
+  const saveEdit = () => {
+    if (!editModal) return;
+    const { type, id, data } = editModal;
+    if (type === "income") {
+      setIncome(p => p.map(x => x.id === id ? { ...x, date: data.date, source: data.source, amount: parseFloat(data.amount) || 0, notes: data.notes || "" } : x));
+    } else if (type === "spending") {
+      setSpending(p => p.map(x => x.id === id ? { ...x, date: data.date, amount: parseFloat(data.amount) || 0, cat: data.cat, notes: data.notes || "" } : x));
+    } else if (type === "reinvestment") {
+      setReinvestments(p => p.map(x => x.id === id ? { ...x, date: data.date, amount: parseFloat(data.amount) || 0, cat: data.cat, notes: data.notes || "", roi: data.roi ? parseFloat(data.roi) : null } : x));
+    } else if (type === "investment") {
+      setInvestments(p => p.map(x => x.id === id ? { ...x, date: data.date, ticker: data.ticker, amount: parseFloat(data.amount) || 0, val: parseFloat(data.val) || 0 } : x));
+    } else if (type === "deal") {
+      setDeals(p => p.map(x => x.id === id ? { ...x, date: data.date, amount: parseFloat(data.amount) || 0, ret: parseFloat(data.ret) || 0, notes: data.notes || "" } : x));
+    }
+    showToast("Entry updated");
+    setEditModal(null);
+  };
+
+  // ── TOAST SYSTEM ──
+  const showToast = (msg) => { setToast({msg,visible:true}); setTimeout(()=>setToast({msg:"",visible:false}), 2200); };
+
+  // ── DELETE HANDLERS ──
+  const delIncome = (id) => { setIncome(p=>p.filter(x=>x.id!==id)); showToast("Income entry removed"); };
+  const delDeal = (id) => { setDeals(p=>p.filter(x=>x.id!==id)); showToast("Deal removed"); };
+  const delReinv = (id) => { setReinvestments(p=>p.filter(x=>x.id!==id)); showToast("Reinvestment removed"); };
+  const delInvest = (id) => { setInvestments(p=>p.filter(x=>x.id!==id)); showToast("Investment removed"); };
+  const delSpend = (id) => { setSpending(p=>p.filter(x=>x.id!==id)); showToast("Expense removed"); };
+  const delDebt = (id) => { setDebts(p=>p.filter(x=>x.id!==id)); showToast("Debt account removed"); };
+  const delDebtPayment = (debtId, payId) => { setDebts(p=>p.map(d=>d.id===debtId?{...d,payments:d.payments.filter(pp=>pp.id!==payId)}:d)); showToast("Payment removed"); };
 
   // ── AUTO-SAVE ──
   useEffect(() => {
@@ -320,6 +380,26 @@ export default function CapitalOS() {
   const wkReinv=useMemo(()=>reinvestments.filter(r=>r.date>=wa).reduce((s,r)=>s+r.amount,0),[reinvestments,wa]);
   const wkDebt=useMemo(()=>debts.reduce((s,d)=>s+d.payments.filter(p=>p.date>=wa).reduce((ps,p)=>ps+p.amount,0),0),[debts,wa]);
 
+  // ── RUNWAY PROJECTION ──
+  const avgMonthlySpend = useMemo(()=>{
+    const months = {};
+    spending.forEach(s=>{ const k=s.date.slice(0,7); months[k]=(months[k]||0)+s.amount; });
+    const vals = Object.values(months);
+    return vals.length > 0 ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+  },[spending]);
+  const runway = useMemo(()=> avgMonthlySpend > 0 ? Math.floor(liq / avgMonthlySpend) : null,[liq, avgMonthlySpend]);
+
+  // ── DEBT PAYOFF ESTIMATES ──
+  const debtPayoffEst = useMemo(()=> debts.map(d=>{
+    const pd = d.payments.reduce((s,p)=>s+p.amount,0);
+    const rm = d.init - pd;
+    const avg = d.payments.length > 0 ? pd / d.payments.length : 0;
+    const paymentsLeft = avg > 0 ? Math.ceil(rm / avg) : null;
+    const now = new Date();
+    const estDate = paymentsLeft ? new Date(now.getFullYear(), now.getMonth() + paymentsLeft, now.getDate()) : null;
+    return { id: d.id, name: d.name, remaining: rm, paymentsLeft, estDate };
+  }),[debts]);
+
   // Deal P&L
   const dealPL=useMemo(()=>{
     const returned=deals.filter(d=>d.status==="returned"&&d.actualRet);
@@ -348,7 +428,7 @@ export default function CapitalOS() {
       // Don't fire when typing in inputs
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
 
-      if (e.key === "Escape") { setCmdOpen(false); setImportModal(null); sDM(false); sDPM(null); sADM(false); sRetM(null); return; }
+      if (e.key === "Escape") { setCmdOpen(false); setImportModal(null); sDM(false); sDPM(null); sADM(false); sRetM(null); setEditModal(null); setFabOpen(false); return; }
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setCmdOpen(prev=>!prev); return; }
       if (e.key === "n" || e.key === "N") { setTab("income"); return; }
       if (e.key === "d" || e.key === "D") { setTab("warchest"); return; }
@@ -363,14 +443,14 @@ export default function CapitalOS() {
 
   // ── FORMS ──
   const [iF,sIF]=useState({date:td(),source:"",amount:"",notes:""});
-  const addI=()=>{if(!iF.source||!iF.amount)return;setIncome(p=>[{id:uid(),...iF,amount:parseFloat(iF.amount)},...p]);sIF({date:td(),source:"",amount:"",notes:""})};
+  const addI=()=>{if(!iF.source||!iF.amount)return;setIncome(p=>[{id:uid(),...iF,amount:parseFloat(iF.amount)},...p]);sIF({date:td(),source:"",amount:"",notes:""});showToast("Income logged: "+F(parseFloat(iF.amount)))};
   const repeatLast=()=>{if(income.length===0)return;const last=income[0];sIF({date:td(),source:last.source,amount:String(last.amount),notes:last.notes})};
   const useTemplate=(t)=>{sIF({date:td(),source:t.source,amount:String(t.amount),notes:t.notes})};
   const saveTemplate=()=>{if(!iF.source)return;setTemplates(p=>[...p,{id:uid(),source:iF.source,amount:parseFloat(iF.amount||0),notes:iF.notes}])};
 
   const [dM,sDM]=useState(false);
   const [dF,sDF]=useState({date:td(),amount:"",ret:"",notes:""});
-  const addD=()=>{if(!dF.amount)return;setDeals(p=>[{id:uid(),...dF,amount:parseFloat(dF.amount),ret:parseFloat(dF.ret||0),actualRet:null,status:"active"},...p]);sDF({date:td(),amount:"",ret:"",notes:""});sDM(false)};
+  const addD=()=>{if(!dF.amount)return;setDeals(p=>[{id:uid(),...dF,amount:parseFloat(dF.amount),ret:parseFloat(dF.ret||0),actualRet:null,status:"active"},...p]);sDF({date:td(),amount:"",ret:"",notes:""});sDM(false);showToast("Capital deployed: "+F(parseFloat(dF.amount)))};
 
   // Deal return modal
   const [retM,sRetM]=useState(null);
@@ -379,16 +459,16 @@ export default function CapitalOS() {
 
   const [dpM,sDPM]=useState(null);
   const [dpA,sDPA]=useState("");
-  const addDP=()=>{if(!dpA||!dpM)return;setDebts(p=>p.map(d=>d.id===dpM?{...d,payments:[...d.payments,{id:uid(),date:td(),amount:parseFloat(dpA)}]}:d));sDPA("");sDPM(null)};
+  const addDP=()=>{if(!dpA||!dpM)return;setDebts(p=>p.map(d=>d.id===dpM?{...d,payments:[...d.payments,{id:uid(),date:td(),amount:parseFloat(dpA)}]}:d));sDPA("");sDPM(null);showToast("Payment recorded: "+F(parseFloat(dpA)))};
   const [adM,sADM]=useState(false);
   const [nD,sND]=useState({name:"",init:""});
   const addND=()=>{if(!nD.name||!nD.init)return;setDebts(p=>[...p,{id:uid(),name:nD.name,init:parseFloat(nD.init),payments:[]}]);sND({name:"",init:""});sADM(false)};
   const [rF,sRF]=useState({date:td(),amount:"",cat:REINV_CATS[0],notes:"",roi:""});
-  const addR=()=>{if(!rF.amount)return;setReinvestments(p=>[{id:uid(),...rF,amount:parseFloat(rF.amount),roi:rF.roi?parseFloat(rF.roi):null},...p]);sRF({date:td(),amount:"",cat:REINV_CATS[0],notes:"",roi:""})};
+  const addR=()=>{if(!rF.amount)return;setReinvestments(p=>[{id:uid(),...rF,amount:parseFloat(rF.amount),roi:rF.roi?parseFloat(rF.roi):null},...p]);sRF({date:td(),amount:"",cat:REINV_CATS[0],notes:"",roi:""});showToast("Reinvestment logged")};
   const [vF,sVF]=useState({date:td(),amount:"",val:"",ticker:""});
-  const addV=()=>{if(!vF.amount)return;const a=parseFloat(vF.amount);setInvestments(p=>[{id:uid(),...vF,amount:a,val:vF.val?parseFloat(vF.val):a},...p]);sVF({date:td(),amount:"",val:"",ticker:""})};
+  const addV=()=>{if(!vF.amount)return;const a=parseFloat(vF.amount);setInvestments(p=>[{id:uid(),...vF,amount:a,val:vF.val?parseFloat(vF.val):a},...p]);sVF({date:td(),amount:"",val:"",ticker:""});showToast("Investment added")};
   const [sForm,sSForm]=useState({date:td(),amount:"",cat:SPEND_CATS[0],notes:""});
-  const addS=()=>{if(!sForm.amount)return;setSpending(p=>[{id:uid(),...sForm,amount:parseFloat(sForm.amount)},...p]);sSForm({date:td(),amount:"",cat:SPEND_CATS[0],notes:""})};
+  const addS=()=>{if(!sForm.amount)return;setSpending(p=>[{id:uid(),...sForm,amount:parseFloat(sForm.amount)},...p]);sSForm({date:td(),amount:"",cat:SPEND_CATS[0],notes:""});showToast("Expense logged")};
 
   // ── CSV IMPORT HANDLER ──
   const fileRef = useRef();
@@ -490,12 +570,12 @@ export default function CapitalOS() {
 
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:32}}>
             {[
-              {l:"War Chest",v:F(liq),s:`${P(liq/(goals.liquidity||75000))} of ${F(goals.liquidity||75000)}`},
-              {l:"Debt Remaining",v:F(debtRem),s:`${F(debtPaid)} eliminated`,neg:true},
-              {l:"Portfolio",v:F(totInvVal),s:`${totInvVal>=totInvAmt?"+":""}${F(totInvVal-totInvAmt)} return`,pos:totInvVal>=totInvAmt},
-              {l:"Deal P&L",v:dealPL.count>0?F(dealPL.profit):"—",s:dealPL.count>0?`${dealPL.count} closed deals`:"No closed deals",pos:dealPL.profit>0},
+              {l:"War Chest",v:F(liq),s:runway?`${runway}mo runway · ${P(liq/(goals.liquidity||75000))} funded`:`${P(liq/(goals.liquidity||75000))} of ${F(goals.liquidity||75000)}`,tab:"warchest"},
+              {l:"Debt Remaining",v:F(debtRem),s:`${F(debtPaid)} eliminated`,neg:true,tab:"debt"},
+              {l:"Portfolio",v:F(totInvVal),s:`${totInvVal>=totInvAmt?"+":""}${F(totInvVal-totInvAmt)} return`,pos:totInvVal>=totInvAmt,tab:"invest"},
+              {l:"Deal P&L",v:dealPL.count>0?F(dealPL.profit):"—",s:dealPL.count>0?`${dealPL.count} closed deals`:"No closed deals",pos:dealPL.profit>0,tab:"warchest"},
             ].map((m,i)=>(
-              <Glass key={i} style={{padding:22}}><Metric label={m.l} value={m.v} sub={m.s} positive={m.pos} negative={m.neg} small/></Glass>
+              <Glass key={i} style={{padding:22,cursor:"pointer",transition:"background 0.15s"}} onClick={()=>setTab(m.tab)}><Metric label={m.l} value={m.v} sub={m.s} positive={m.pos} negative={m.neg} small/></Glass>
             ))}
           </div>
 
@@ -637,7 +717,7 @@ export default function CapitalOS() {
               <Btn secondary size="sm" onClick={()=>xcsv("income.csv",["date","source","amount","notes"],income)}>Export</Btn>
             </div>
             <div style={{padding:"0 28px 16px"}}>
-              {income.map(i=><Row key={i.id} label={i.source} sub={rel(i.date)} amount={`+${F(i.amount)}`} amtColor={T.pos} right={i.notes}/>)}
+              {income.map(i=><Row key={i.id} label={i.source} sub={rel(i.date)} amount={`+${F(i.amount)}`} amtColor={T.pos} right={i.notes} onDelete={()=>delIncome(i.id)} onEdit={()=>openEdit("income",i)}/>)}
             </div>
           </Glass>
         </>)}
@@ -658,7 +738,7 @@ export default function CapitalOS() {
               <Metric label="Liquidity" value={F(liq)} small/>
               <Metric label="Target" value={F(goals.liquidity||75000)} small/>
               <Metric label="Deployed" value={F(deployed)} small/>
-              <Metric label="To Goal" value={F(Math.max(0,(goals.liquidity||75000)-liq))} small/>
+              <Metric label="Runway" value={runway?`${runway} mo`:"—"} sub={avgMonthlySpend>0?`at ${F(avgMonthlySpend)}/mo burn`:""} positive={runway&&runway>=12} negative={runway&&runway<6} small/>
             </div>
           </GlassStrong>
 
@@ -688,6 +768,7 @@ export default function CapitalOS() {
                     <Tag positive={d.status==="returned"} negative={d.status==="active"}>{d.status}</Tag>
                     {d.status==="active"&&<span onClick={()=>{sRetM(d.id);sRetAmt(String(d.ret||""))}} style={{fontSize:10,color:T.sub,cursor:"pointer",textDecoration:"underline"}}>close deal</span>}
                   </div>}
+                  onDelete={()=>delDeal(d.id)} onEdit={d.status==="active"?()=>openEdit("deal",d):undefined}
                 />;
               })}
             </div>
@@ -733,9 +814,12 @@ export default function CapitalOS() {
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
                   <div>
                     <div style={{fontSize:17,fontWeight:500,color:T.heading}}>{d.name}</div>
-                    <div style={{fontSize:11,color:T.muted,marginTop:4}}>Original: {F(d.init)} {left&&`· ~${left} payments left`}</div>
+                    <div style={{fontSize:11,color:T.muted,marginTop:4}}>Original: {F(d.init)} {left?`· ~${left} payments left`+(()=>{const est=debtPayoffEst.find(x=>x.id===d.id);return est&&est.estDate?` · Free by ${est.estDate.toLocaleDateString("en-US",{month:"short",year:"numeric"})}`:""})():""}</div>
                   </div>
-                  <Btn secondary size="sm" onClick={()=>{sDPM(d.id);sDPA("")}}>+ Payment</Btn>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <Btn secondary size="sm" onClick={()=>{sDPM(d.id);sDPA("")}}>+ Payment</Btn>
+                    <span onClick={()=>delDebt(d.id)} style={{fontSize:15,color:T.dim,cursor:"pointer",padding:"4px 6px"}}>×</span>
+                  </div>
                 </div>
                 <PBar value={pd} max={d.init} h={4}/>
                 <div style={{display:"flex",justifyContent:"space-between",marginTop:10}}>
@@ -744,7 +828,7 @@ export default function CapitalOS() {
                 </div>
                 {d.payments.length>0&&(
                   <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
-                    {[...d.payments].reverse().slice(0,4).map(p=><Row key={p.id} label="Payment" sub={rel(p.date)} amount={`-${F(p.amount)}`} amtColor={T.pos}/>)}
+                    {[...d.payments].reverse().slice(0,4).map(p=><Row key={p.id} label="Payment" sub={rel(p.date)} amount={`-${F(p.amount)}`} amtColor={T.pos} onDelete={()=>delDebtPayment(d.id,p.id)}/>)}
                   </div>
                 )}
               </Glass>
@@ -802,7 +886,7 @@ export default function CapitalOS() {
           </div>
           <Glass pad={false}>
             <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>All Reinvestments</SH><Btn secondary size="sm" onClick={()=>xcsv("reinvestments.csv",["date","amount","cat","notes","roi"],reinvestments)}>Export</Btn></div>
-            <div style={{padding:"0 28px 16px"}}>{reinvestments.map(r=><Row key={r.id} label={r.notes} sub={`${r.cat} · ${rel(r.date)}`} amount={F(r.amount)} right={r.roi?`${r.roi}x`:""}/>)}</div>
+            <div style={{padding:"0 28px 16px"}}>{reinvestments.map(r=><Row key={r.id} label={r.notes} sub={`${r.cat} · ${rel(r.date)}`} amount={F(r.amount)} right={r.roi?`${r.roi}x`:""} onDelete={()=>delReinv(r.id)} onEdit={()=>openEdit("reinvestment",r)}/>)}</div>
           </Glass>
         </>)}
 
@@ -832,7 +916,7 @@ export default function CapitalOS() {
             <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>Portfolio</SH><Btn secondary size="sm" onClick={()=>xcsv("investments.csv",["date","ticker","amount","val"],investments)}>Export</Btn></div>
             <div style={{padding:"0 28px 16px"}}>
               {investments.map(inv=>{const gl=inv.val-inv.amount;return(
-                <Row key={inv.id} label={inv.ticker} sub={rel(inv.date)} amount={F(inv.val)} amtColor={gl>=0?T.pos:T.neg} right={<span style={{color:gl>=0?T.pos:T.neg}}>{gl>=0?"+":""}{F(gl)}</span>}/>
+                <Row key={inv.id} label={inv.ticker} sub={rel(inv.date)} amount={F(inv.val)} amtColor={gl>=0?T.pos:T.neg} right={<span style={{color:gl>=0?T.pos:T.neg}}>{gl>=0?"+":""}{F(gl)}</span>} onDelete={()=>delInvest(inv.id)} onEdit={()=>openEdit("investment",inv)}/>
               )})}
             </div>
           </Glass>
@@ -894,7 +978,7 @@ export default function CapitalOS() {
           </div>
           <Glass pad={false}>
             <div style={{padding:"22px 28px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}><SH>Expense Log</SH><Btn secondary size="sm" onClick={()=>xcsv("spending.csv",["date","amount","cat","notes"],spending)}>Export</Btn></div>
-            <div style={{padding:"0 28px 16px"}}>{spending.map(s=><Row key={s.id} label={s.notes||s.cat} sub={rel(s.date)} amount={F(s.amount)} right={s.cat}/>)}</div>
+            <div style={{padding:"0 28px 16px"}}>{spending.map(s=><Row key={s.id} label={s.notes||s.cat} sub={rel(s.date)} amount={F(s.amount)} right={s.cat} onDelete={()=>delSpend(s.id)} onEdit={()=>openEdit("spending",s)}/>)}</div>
           </Glass>
         </>)}
 
@@ -1048,6 +1132,81 @@ export default function CapitalOS() {
         </>)}
 
       </main>
+
+      {/* EDIT MODAL */}
+      <Modal open={editModal!==null} onClose={()=>setEditModal(null)} title={editModal?("Edit "+(editModal.type==="income"?"Income":editModal.type==="spending"?"Expense":editModal.type==="reinvestment"?"Reinvestment":editModal.type==="investment"?"Investment":"Deal")):""}>
+        {editModal&&editModal.type==="income"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <Inp label="Date" type="date" value={editModal.data.date||""} onChange={e=>updateEditField("date",e.target.value)}/>
+            <Inp label="Source" value={editModal.data.source||""} onChange={e=>updateEditField("source",e.target.value)}/>
+            <Inp label="Amount" type="number" value={editModal.data.amount||""} onChange={e=>updateEditField("amount",e.target.value)}/>
+            <Inp label="Notes" value={editModal.data.notes||""} onChange={e=>updateEditField("notes",e.target.value)}/>
+            <Btn onClick={saveEdit}>Save Changes</Btn>
+          </div>
+        )}
+        {editModal&&editModal.type==="spending"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <Inp label="Date" type="date" value={editModal.data.date||""} onChange={e=>updateEditField("date",e.target.value)}/>
+            <Inp label="Amount" type="number" value={editModal.data.amount||""} onChange={e=>updateEditField("amount",e.target.value)}/>
+            <Sel label="Category" options={SPEND_CATS} value={editModal.data.cat||SPEND_CATS[0]} onChange={e=>updateEditField("cat",e.target.value)}/>
+            <Inp label="Notes" value={editModal.data.notes||""} onChange={e=>updateEditField("notes",e.target.value)}/>
+            <Btn onClick={saveEdit}>Save Changes</Btn>
+          </div>
+        )}
+        {editModal&&editModal.type==="reinvestment"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <Inp label="Date" type="date" value={editModal.data.date||""} onChange={e=>updateEditField("date",e.target.value)}/>
+            <Inp label="Amount" type="number" value={editModal.data.amount||""} onChange={e=>updateEditField("amount",e.target.value)}/>
+            <Sel label="Category" options={REINV_CATS} value={editModal.data.cat||REINV_CATS[0]} onChange={e=>updateEditField("cat",e.target.value)}/>
+            <Inp label="Notes" value={editModal.data.notes||""} onChange={e=>updateEditField("notes",e.target.value)}/>
+            <Inp label="ROI" type="number" value={editModal.data.roi||""} onChange={e=>updateEditField("roi",e.target.value)}/>
+            <Btn onClick={saveEdit}>Save Changes</Btn>
+          </div>
+        )}
+        {editModal&&editModal.type==="investment"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <Inp label="Date" type="date" value={editModal.data.date||""} onChange={e=>updateEditField("date",e.target.value)}/>
+            <Inp label="Ticker" value={editModal.data.ticker||""} onChange={e=>updateEditField("ticker",e.target.value)}/>
+            <Inp label="Cost Basis" type="number" value={editModal.data.amount||""} onChange={e=>updateEditField("amount",e.target.value)}/>
+            <Inp label="Current Value" type="number" value={editModal.data.val||""} onChange={e=>updateEditField("val",e.target.value)}/>
+            <Btn onClick={saveEdit}>Save Changes</Btn>
+          </div>
+        )}
+        {editModal&&editModal.type==="deal"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <Inp label="Date" type="date" value={editModal.data.date||""} onChange={e=>updateEditField("date",e.target.value)}/>
+            <Inp label="Amount Deployed" type="number" value={editModal.data.amount||""} onChange={e=>updateEditField("amount",e.target.value)}/>
+            <Inp label="Expected Return" type="number" value={editModal.data.ret||""} onChange={e=>updateEditField("ret",e.target.value)}/>
+            <Inp label="Notes" value={editModal.data.notes||""} onChange={e=>updateEditField("notes",e.target.value)}/>
+            <Btn onClick={saveEdit}>Save Changes</Btn>
+          </div>
+        )}
+      </Modal>
+
+      {/* FLOATING ACTION BUTTON (mobile quick-add) */}
+      <FAB onClick={()=>setFabOpen(true)}/>
+      <Modal open={fabOpen} onClose={()=>setFabOpen(false)} title="Quick Add">
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[
+            {label:"Log Income",action:()=>{setFabOpen(false);setTab("income")}},
+            {label:"Log Expense",action:()=>{setFabOpen(false);setTab("spending")}},
+            {label:"Deploy Capital",action:()=>{setFabOpen(false);setTab("warchest")}},
+            {label:"Record Payment",action:()=>{setFabOpen(false);setTab("debt")}},
+            {label:"Add Investment",action:()=>{setFabOpen(false);setTab("invest")}},
+            {label:"Log Reinvestment",action:()=>{setFabOpen(false);setTab("reinvest")}},
+          ].map(item=>(
+            <div key={item.label} onClick={item.action} style={{padding:"14px 18px",borderRadius:12,border:`1px solid ${T.dim}`,cursor:"pointer",fontSize:14,fontWeight:500,color:T.text,transition:"background 0.15s",background:"rgba(255,255,255,0.02)"}}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      {/* TOAST */}
+      <Toast msg={toast.msg} visible={toast.visible}/>
+
+      {/* ANIMATION KEYFRAMES */}
+      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
     </div>
   );
 }
