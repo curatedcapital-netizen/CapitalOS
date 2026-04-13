@@ -205,13 +205,17 @@ function Row({label, sub, amount, amtColor, right, onDelete, onEdit}) {
       <div style={{fontSize:14,fontWeight:500,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</div>
       {sub&&<div style={{fontSize:11,color:T.muted,marginTop:3}}>{sub}</div>}
     </div>
-    <div style={{display:"flex",alignItems:"center",gap:12}}>
+    <div style={{display:"flex",alignItems:"center",gap:8}}>
       <div style={{textAlign:"right",flexShrink:0}}>
         <div style={{fontSize:14,fontWeight:600,color:amtColor||T.text,fontVariantNumeric:"tabular-nums",fontFamily:mono,letterSpacing:-0.5}}>{amount}</div>
         {right&&<div style={{fontSize:10,color:T.muted,marginTop:3}}>{typeof right==="string"?right:right}</div>}
       </div>
-      {onEdit&&<span onClick={onEdit} style={{fontSize:11,color:T.muted,cursor:"pointer",padding:"4px 6px",borderRadius:6,lineHeight:1,flexShrink:0}}>edit</span>}
-      {onDelete&&<span onClick={onDelete} style={{fontSize:15,color:T.dim,cursor:"pointer",padding:"4px 6px",borderRadius:6,transition:"color 0.15s",lineHeight:1,flexShrink:0}}>×</span>}
+      {(onEdit||onDelete)&&(
+        <div style={{display:"flex",alignItems:"center",gap:2,marginLeft:8}}>
+          {onEdit&&<span onClick={onEdit} style={{fontSize:11,color:T.sub,cursor:"pointer",padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:`1px solid ${T.dim}`,lineHeight:1,flexShrink:0,transition:"background 0.15s"}}>edit</span>}
+          {onDelete&&<span onClick={onDelete} style={{fontSize:11,color:T.neg,cursor:"pointer",padding:"6px 10px",borderRadius:8,background:"rgba(196,112,112,0.06)",border:`1px solid rgba(196,112,112,0.15)`,lineHeight:1,flexShrink:0,transition:"background 0.15s"}}>×</span>}
+        </div>
+      )}
     </div>
   </div>);
 }
@@ -336,6 +340,16 @@ function CapitalOS() {
   const delDebt = (id) => { setDebts(p=>p.filter(x=>x.id!==id)); showToast("Debt account removed"); };
   const delDebtPayment = (debtId, payId) => { setDebts(p=>p.map(d=>d.id===debtId?{...d,payments:d.payments.filter(pp=>pp.id!==payId)}:d)); showToast("Payment removed"); };
 
+  // ── DEBT EDIT ──
+  const [editDebtModal, setEditDebtModal] = useState(null); // {id, name, init}
+  const openEditDebt = (d) => { setEditDebtModal({id:d.id, name:d.name, init:String(d.init)}); };
+  const saveEditDebt = () => { if(!editDebtModal) return; setDebts(p=>p.map(d=>d.id===editDebtModal.id?{...d,name:editDebtModal.name,init:parseFloat(editDebtModal.init)||d.init}:d)); showToast("Debt updated"); setEditDebtModal(null); };
+
+  // ── PAYMENT EDIT ──
+  const [editPayModal, setEditPayModal] = useState(null); // {debtId, payId, date, amount}
+  const openEditPay = (debtId, p) => { setEditPayModal({debtId, payId:p.id, date:p.date, amount:String(p.amount)}); };
+  const saveEditPay = () => { if(!editPayModal) return; setDebts(prev=>prev.map(d=>d.id===editPayModal.debtId?{...d,payments:d.payments.map(p=>p.id===editPayModal.payId?{...p,date:editPayModal.date,amount:parseFloat(editPayModal.amount)||p.amount}:p)}:d)); showToast("Payment updated"); setEditPayModal(null); };
+
   // ── AUTO-SAVE ──
   useEffect(() => {
     const state = { income, debts, deals, reinvestments, investments, spending, goals, templates, snapshots };
@@ -428,7 +442,7 @@ function CapitalOS() {
       // Don't fire when typing in inputs
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
 
-      if (e.key === "Escape") { setCmdOpen(false); setImportModal(null); sDM(false); sDPM(null); sADM(false); sRetM(null); setEditModal(null); setFabOpen(false); return; }
+      if (e.key === "Escape") { setCmdOpen(false); setImportModal(null); sDM(false); sDPM(null); sADM(false); sRetM(null); setEditModal(null); setFabOpen(false); setEditDebtModal(null); setEditPayModal(null); return; }
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setCmdOpen(prev=>!prev); return; }
       if (e.key === "n" || e.key === "N") { setTab("income"); return; }
       if (e.key === "d" || e.key === "D") { setTab("warchest"); return; }
@@ -816,9 +830,10 @@ function CapitalOS() {
                     <div style={{fontSize:17,fontWeight:500,color:T.heading}}>{d.name}</div>
                     <div style={{fontSize:11,color:T.muted,marginTop:4}}>Original: {F(d.init)} {left?`· ~${left} payments left`+(()=>{const est=debtPayoffEst.find(x=>x.id===d.id);return est&&est.estDate?` · Free by ${est.estDate.toLocaleDateString("en-US",{month:"short",year:"numeric"})}`:""})():""}</div>
                   </div>
-                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
                     <Btn secondary size="sm" onClick={()=>{sDPM(d.id);sDPA("")}}>+ Payment</Btn>
-                    <span onClick={()=>delDebt(d.id)} style={{fontSize:15,color:T.dim,cursor:"pointer",padding:"4px 6px"}}>×</span>
+                    <span onClick={()=>openEditDebt(d)} style={{fontSize:11,color:T.sub,cursor:"pointer",padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:`1px solid ${T.dim}`,lineHeight:1}}>edit</span>
+                    <span onClick={()=>delDebt(d.id)} style={{fontSize:11,color:T.neg,cursor:"pointer",padding:"6px 10px",borderRadius:8,background:"rgba(196,112,112,0.06)",border:`1px solid rgba(196,112,112,0.15)`,lineHeight:1}}>×</span>
                   </div>
                 </div>
                 <PBar value={pd} max={d.init} h={4}/>
@@ -828,15 +843,47 @@ function CapitalOS() {
                 </div>
                 {d.payments.length>0&&(
                   <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
-                    {[...d.payments].reverse().slice(0,4).map(p=><Row key={p.id} label="Payment" sub={rel(p.date)} amount={`-${F(p.amount)}`} amtColor={T.pos} onDelete={()=>delDebtPayment(d.id,p.id)}/>)}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <span style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600}}>Payment History</span>
+                    </div>
+                    {[...d.payments].reverse().map(p=><Row key={p.id} label="Payment" sub={rel(p.date)} amount={`-${F(p.amount)}`} amtColor={T.pos} onDelete={()=>delDebtPayment(d.id,p.id)} onEdit={()=>openEditPay(d.id,p)}/>)}
                   </div>
                 )}
               </Glass>
             );
           })}
           <Btn secondary onClick={()=>sADM(true)} style={{marginTop:8}}>+ Add Debt Account</Btn>
-          <Modal open={dpM!==null} onClose={()=>sDPM(null)} title="Record Payment"><div style={{display:"flex",flexDirection:"column",gap:14}}><Inp label="Amount" type="number" placeholder="0" value={dpA} onChange={e=>sDPA(e.target.value)}/><Btn onClick={addDP}>Record</Btn></div></Modal>
-          <Modal open={adM} onClose={()=>sADM(false)} title="Add Debt"><div style={{display:"flex",flexDirection:"column",gap:14}}><Inp label="Name" placeholder="Card or loan" value={nD.name} onChange={e=>sND(p=>({...p,name:e.target.value}))}/><Inp label="Balance" type="number" placeholder="0" value={nD.init} onChange={e=>sND(p=>({...p,init:e.target.value}))}/><Btn onClick={addND}>Add</Btn></div></Modal>
+          <Modal open={dpM!==null} onClose={()=>sDPM(null)} title="Record Payment">
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <Inp label="Amount" type="number" placeholder="0" value={dpA} onChange={e=>sDPA(e.target.value)}/>
+              <Btn onClick={addDP}>Record Payment</Btn>
+            </div>
+          </Modal>
+          <Modal open={adM} onClose={()=>sADM(false)} title="Add Debt Account">
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <Inp label="Name" placeholder="Card name, loan, etc." value={nD.name} onChange={e=>sND(p=>({...p,name:e.target.value}))}/>
+              <Inp label="Total Balance" type="number" placeholder="0" value={nD.init} onChange={e=>sND(p=>({...p,init:e.target.value}))}/>
+              <Btn onClick={addND}>Add Debt</Btn>
+            </div>
+          </Modal>
+          <Modal open={editDebtModal!==null} onClose={()=>setEditDebtModal(null)} title="Edit Debt Account">
+            {editDebtModal&&(
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <Inp label="Name" value={editDebtModal.name} onChange={e=>setEditDebtModal(prev=>({...prev,name:e.target.value}))}/>
+                <Inp label="Original Balance" type="number" value={editDebtModal.init} onChange={e=>setEditDebtModal(prev=>({...prev,init:e.target.value}))}/>
+                <Btn onClick={saveEditDebt}>Save Changes</Btn>
+              </div>
+            )}
+          </Modal>
+          <Modal open={editPayModal!==null} onClose={()=>setEditPayModal(null)} title="Edit Payment">
+            {editPayModal&&(
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <Inp label="Date" type="date" value={editPayModal.date} onChange={e=>setEditPayModal(prev=>({...prev,date:e.target.value}))}/>
+                <Inp label="Amount" type="number" value={editPayModal.amount} onChange={e=>setEditPayModal(prev=>({...prev,amount:e.target.value}))}/>
+                <Btn onClick={saveEditPay}>Save Changes</Btn>
+              </div>
+            )}
+          </Modal>
         </>)}
 
         {/* ══════════ REINVEST ══════════ */}
